@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Booking AI — прототип</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏠</text></svg>">
+<style>
+  body { font-family: system-ui, sans-serif; background:#f6f7fb; margin:0; padding:40px 16px; color:#1c1e21; }
+  .card { max-width:560px; margin:0 auto; background:#fff; border-radius:14px; padding:24px; box-shadow:0 4px 20px rgba(0,0,0,.08); }
+  h1 { font-size:20px; margin:0 0 16px; }
+  label.status { display:flex; gap:10px; align-items:center; margin-bottom:14px; font-weight:600; }
+  textarea { width:100%; box-sizing:border-box; min-height:80px; border:1px solid #c9cdd6; border-radius:10px; padding:10px; font-size:15px; resize:vertical; }
+  button { margin-top:12px; width:100%; padding:12px; font-size:16px; border:0; border-radius:10px; background:#2563eb; color:#fff; cursor:pointer; }
+  button:disabled { background:#9db4e8; cursor:wait; }
+  .answer { margin-top:16px; padding:14px; border-radius:10px; background:#eef4ff; white-space:pre-wrap; display:none; }
+  .meta { margin-top:8px; font-size:12px; color:#7a7f8a; }
+  .badge { display:inline-block; padding:4px 10px; border-radius:999px; font-size:12px; font-weight:600; }
+  .badge.no { background:#fde8e8; color:#b91c1c; }
+  .badge.yes { background:#e5f7ea; color:#15803d; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🏠 ИИ-ассистент бронирования</h1>
+  <label class="status">
+    <input type="checkbox" id="passport">
+    Паспорт получен
+    <span id="statusBadge" class="badge no">не получен</span>
+  </label>
+  <textarea id="message" placeholder="Например: Как мне заселиться?"></textarea>
+  <button id="askBtn">Получить ответ ИИ</button>
+  <div id="answer" class="answer"></div>
+  <div id="meta" class="meta"></div>
+</div>
+<script>
+const passport = document.getElementById('passport');
+const badge = document.getElementById('statusBadge');
+const btn = document.getElementById('askBtn');
+const answerBox = document.getElementById('answer');
+const meta = document.getElementById('meta');
+
+passport.addEventListener('change', () => {
+  badge.textContent = passport.checked ? 'получен' : 'не получен';
+  badge.className = 'badge ' + (passport.checked ? 'yes' : 'no');
+});
+
+btn.addEventListener('click', async () => {
+  const message = document.getElementById('message').value.trim();
+  if (!message) { alert('Впишите сообщение гостя'); return; }
+  btn.disabled = true; btn.textContent = 'ИИ думает…';
+  answerBox.style.display = 'none'; meta.textContent = '';
+  try {
+    const r = await fetch('/api/ask', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ message: message, passport_received: passport.checked })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Ошибка сервера');
+    answerBox.style.display = 'block';
+    answerBox.textContent = data.reply;
+    meta.textContent = 'Модель: ' + data.model + ' · статус: ' + (data.passport_received ? 'паспорт получен' : 'паспорт не получен');
+  } catch (e) {
+    answerBox.style.display = 'block';
+    answerBox.textContent = 'Ошибка: ' + e.message;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Получить ответ ИИ';
+  }
+});
+</script>
+</body>
+</html>
